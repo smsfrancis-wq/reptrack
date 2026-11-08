@@ -42,7 +42,7 @@ function load(){
   catch {return defaultState();}
 }
 let state=load();
-function save(){try{localStorage.setItem(STORE_KEY, JSON.stringify(state));}catch{showToast('Storage blocked or full. Export a backup now.');}}
+function save(fromCloud=false){try{localStorage.setItem(STORE_KEY, JSON.stringify(state));if(!fromCloud)window.RepTrackCloud?.markDirty();}catch{showToast('Storage blocked or full. Export a backup now.');}}
 function showToast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),3200);}
 function navigate(tab){currentTab=tab;render();window.scrollTo({top:0,behavior:'instant'});}
 function activeWorkout(){return state.workouts.find(s=>s.id===state.activeWorkoutId && !s.completedAt) || null;}
@@ -73,7 +73,7 @@ function render(){
   const t={dashboard:'Overview',workout:'Workout log',progress:'Progress',settings:'Settings'}[currentTab];
   app.innerHTML=`<div class="shell">
     <aside class="sidebar"><div class="brand"><div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div><div><span class="brand-name">REP<em>TRACK</em></span><span class="brand-sub">Strength & progress</span></div></div><nav class="nav-links" aria-label="Main navigation">${NAV.map(navButton).join('')}</nav><div class="sidebar-foot"><div class="caps">Weekly commitment</div><strong>${Math.min(thisWeekWorkouts(),3)} / 3</strong><div class="progress-track"><div class="progress-fill" style="width:${Math.min(thisWeekWorkouts()/3,1)*100}%"></div></div><div class="tiny muted">Full-body strength sessions</div></div></aside>
-    <div class="main-area"><header class="topbar"><div class="topbar-title">${esc(t)} <span class="subtle"> / ${new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</span></div><div class="private">● LOCAL & PRIVATE</div></header><main class="content">${currentTab==='dashboard'?renderDashboard():currentTab==='workout'?renderWorkout():currentTab==='progress'?renderProgress():renderSettings()}</main><nav class="mobile-nav" aria-label="Mobile navigation">${NAV.map(navButton).join('')}</nav></div>
+    <div class="main-area"><header class="topbar"><div class="topbar-title">${esc(t)} <span class="subtle"> / ${new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</span></div><div class="private">${window.RepTrackCloud?.badge() || '● LOCAL ONLY'}</div></header><main class="content">${currentTab==='dashboard'?renderDashboard():currentTab==='workout'?renderWorkout():currentTab==='progress'?renderProgress():renderSettings()}</main><nav class="mobile-nav" aria-label="Mobile navigation">${NAV.map(navButton).join('')}</nav></div>
   </div>`;
 }
 function heading(kicker,title,desc,extra=''){return `<div class="heading"><div><div class="eyebrow">${kicker}</div><h1>${title}</h1>${desc?`<p class="description">${desc}</p>`:''}</div>${extra}</div>`;}
@@ -133,7 +133,7 @@ function renderWorkout(){
   return `${heading('Training in progress','Today’s workout','Warm up for five minutes. Use smooth, controlled movements and leave around two reps in reserve.',`<span class="badge">● Active session</span>`)}
     <div class="card session-banner"><div class="flex between wrap"><div><div class="caps">${niceDate(workout.date)} · Full body</div><strong>${done} of ${total} sets completed</strong></div><span class="pill">Rest 60–90 seconds</span></div><div class="progress-track" style="margin-top:14px"><div class="progress-fill" style="width:${total?Math.round(100*done/total):0}%"></div></div></div>
     <div class="stack section-spacer">${workout.exercises.map((ex,i)=>renderExercise(workout,ex,i)).join('')}</div>
-    <div class="card section-spacer"><div class="field"><label for="session-note">Overall session notes</label><textarea id="session-note" data-field="workout-note" placeholder="Energy, technique, soreness, anything to remember…">${esc(workout.note||'')}</textarea></div><p class="tiny muted" style="margin-top:9px">Your entries save automatically on this device.</p></div>
+    <div class="card section-spacer"><div class="field"><label for="session-note">Overall session notes</label><textarea id="session-note" data-field="workout-note" placeholder="Energy, technique, soreness, anything to remember…">${esc(workout.note||'')}</textarea></div><p class="tiny muted" style="margin-top:9px">Your entries save instantly on this device, then sync when you’re connected.</p></div>
     <div class="workout-footer"><div><strong>${done} sets logged</strong><div class="tiny muted">${workout.exercises.filter(e=>e.sets.some(s=>s.done)).length} of 7 exercises</div></div><div class="flex"><button class="btn ghost sm" data-action="discard-workout">Discard</button><button class="btn primary" data-action="finish-workout">Finish workout</button></div></div>`;
 }
 function renderSessionHistory(limit){
@@ -175,10 +175,10 @@ function renderProgress(){
     <div class="section-spacer card"><div class="card-hd"><h2>Creatine record</h2><span class="pill">${state.settings.creatineDose} g / day</span></div><p class="muted tiny">Tap a date to add or remove a daily dose; the calendar shows the past seven days.</p>${creatineCalendar()}</div>`;
 }
 function renderSettings(){
-  return `${heading('Make it yours','Preferences & data','Edit your targets and keep a copy of your records. No account or subscription required.')}
+  return `${heading('Make it yours','Preferences & data','Edit your targets, connect secure cloud sync and retain a local backup.')}
   <div class="grid cols-2"><section class="card"><div class="card-hd"><h2>Your targets</h2></div><form data-form="settings"><div class="goal-row"><div class="field"><label for="weightGoal">Target body weight (lb)</label><input id="weightGoal" name="weightGoal" type="number" min="70" max="700" step="0.5" value="${esc(state.settings.weightGoal)}" required></div><div class="field"><label for="proteinGoal">Daily protein (g)</label><input id="proteinGoal" name="proteinGoal" type="number" min="10" max="400" step="1" value="${esc(state.settings.proteinGoal)}" required></div><div class="field"><label for="caloriesGoal">Daily calories</label><input id="caloriesGoal" name="caloriesGoal" type="number" min="900" max="8000" step="25" value="${esc(state.settings.caloriesGoal)}" required></div><div class="field"><label for="creatineDose">Daily creatine (g)</label><input id="creatineDose" name="creatineDose" type="number" min="1" max="10" step="0.5" value="${esc(state.settings.creatineDose)}" required></div></div><div class="form-actions"><button class="btn primary" type="submit">Save targets</button></div></form></section>
-  <section class="card"><div class="card-hd"><h2>Backup & exports</h2></div><div class="stack"><p class="muted">Your data is saved locally in this browser. Export it regularly, particularly before changing phones or clearing browser data.</p><button class="btn" data-action="export-json">Download full backup (JSON)</button><button class="btn" data-action="export-csv">Export workout sets (CSV)</button><button class="btn ghost" data-action="import-json">Restore from backup</button><input class="hide" type="file" id="import-file" accept="application/json,.json" aria-label="Choose RepTrack backup file"><div class="privacy"><strong>Privacy & multi-device use</strong><p class="muted tiny" style="margin-top:8px">Records stay in this browser. GitHub Pages can host the app, but does not synchronise your records between Android and PC. Use backup/restore to transfer data, or add a private Supabase account later.</p></div></div></section></div>
-  <div class="card section-spacer"><div class="card-hd"><h2>Reset your data</h2></div><p class="muted">Deletes logged sessions, weight history and creatine records from this browser, and restores the default goals. Export a backup first.</p><div style="margin-top:15px"><button class="btn danger" data-action="clear-data">Delete all local records</button></div></div>`;
+  <section class="card"><div class="card-hd"><h2>Backup & exports</h2></div><div class="stack"><p class="muted">Your data is saved locally in this browser. Export it regularly, particularly before changing phones or clearing browser data.</p><button class="btn" data-action="export-json">Download full backup (JSON)</button><button class="btn" data-action="export-csv">Export workout sets (CSV)</button><button class="btn ghost" data-action="import-json">Restore from backup</button><input class="hide" type="file" id="import-file" accept="application/json,.json" aria-label="Choose RepTrack backup file"><div class="privacy"><strong>Privacy & multi-device use</strong><p class="muted tiny" style="margin-top:8px">Records save locally first. With Supabase connected and signed in, records also sync securely between devices. Until then, use JSON backup and restore.</p></div></div></section></div>
+  ${window.RepTrackCloud?.panel() || ''}<div class="card section-spacer"><div class="card-hd"><h2>Reset your data</h2></div><p class="muted">Resets this device to defaults. If cloud sync is connected, the reset will also sync to the cloud. Export a backup first.</p><div style="margin-top:15px"><button class="btn danger" data-action="clear-data">Delete all local records</button></div></div>`;
 }
 function startWorkout(){
   if(!activeWorkout()){
@@ -249,7 +249,7 @@ function clickAction(action,button){
     case 'export-csv':exportSetsCsv();return;
     case 'import-json':document.getElementById('import-file')?.click();return;
     case 'clear-data':{
-      if(!confirm('Delete ALL locally stored workout, weight and creatine records? Export a backup first.'))return;
+      if(!confirm('Delete ALL workout, weight and creatine records? With cloud sync enabled this reset will also update the cloud. Export a backup first.'))return;
       if(!confirm('Final confirmation: permanently reset RepTrack on this device?'))return;
       state=defaultState();save();navigate('dashboard');showToast('Local records reset.');return;
     }
@@ -315,7 +315,14 @@ document.addEventListener('change',async event=>{
   }catch(error){showToast(`Import failed: ${error.message}`);}
 });
 
-render();save();
+render();save(true);
+window.RepTrackCloud?.start({
+  getState:()=>state,
+  validData,
+  replaceState:(incoming)=>{if(!validData(incoming))throw Error('Invalid cloud data');state=incoming;save(true);render();},
+  redraw:()=>{if(currentTab==='settings'||currentTab==='dashboard')render();},
+  downloadLocal:()=>download(JSON.stringify(state,null,2),`reptrack-local-backup-${today()}.json`,'application/json')
+});
 if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 }

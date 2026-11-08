@@ -1,6 +1,6 @@
 # RepTrack — personal strength and body-weight tracker
 
-Mobile-first, offline-capable personal workout tracker designed around a **Marcy MWM-900** home gym. No framework, build step, server, database or subscription required.
+Mobile-first, offline-capable personal workout tracker designed around a **Marcy MWM-900** home gym. No framework or build step required. Works offline; optional authenticated Supabase synchronisation.
 
 ## Features
 
@@ -39,9 +39,9 @@ Note: GitHub Pages normally requires an appropriate public repository for free-t
 
 ## Privacy and synchronisation
 
-Records are stored in browser `localStorage` for this origin. GitHub hosting only serves code; it does **not** store/sync records. Data from two devices will be separate. For now export a JSON backup on one device and import it on the other. This is a whole-data restore, not an intelligent two-way merge.
+Records remain in browser `localStorage` and all core features work without a cloud account. Supabase cloud sync is available in v2 with email/password authentication, strict row-level security, and optimistic revision checks. A separate project stores only private workout snapshots under the signed-in user's UUID. **Before using sync, run `supabase/setup.sql` in the new Supabase project's SQL Editor and provide the publishable/anon key in RepTrack Settings.** See [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) for exact instructions.
 
-For automatic multi-device sync, a later release could introduce Supabase Auth and protected tables with strict row-level security. Do not enable a database without authentication/RLS. Do not use the public code repository to hold private weight or workout exports.
+Never commit workout exports or private Supabase keys (service_role / sb_secret) to GitHub. You can safely keep the public project URL and publishable/anon key in a client app provided RLS is enforced. Divergent offline edits require an explicit resolution; this release does not automatically merge them. Export JSON backups regularly.
 
 ## Health note
 
@@ -54,4 +54,7 @@ The programme and diet targets are planning aids, not medical guidance. Start wi
 - `styles.css` — responsive dark UI
 - `manifest.webmanifest` — app metadata
 - `sw.js` — offline caching
+- `cloud.js` — optional Supabase sign-in and synchronisation
+- `supabase/setup.sql` — authenticated-only table, RLS policies and concurrency-safe RPC
+- `SUPABASE_SETUP.md` — step-by-step connection instructions
 - `icons/` — app icon
